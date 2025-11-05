@@ -1,4 +1,5 @@
 project_id         = "your-gcp-project-id"
 region             = "europe-central2"
+zone               = "europe-central2-b"
 admin_cidr         = "YOUR.PUBLIC.IP.ADDR/32"
 http_ingress_cidrs = ["YOUR.PUBLIC.IP.ADDR/32"] # safer than 0.0.0.0/0

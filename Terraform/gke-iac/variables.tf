@@ -9,6 +9,12 @@ variable "region" {
   default     = "europe-central2"
 }
 
+variable "zone" {
+  description = "GCP zone for the cluster (zonal cluster avoids SSD quota errors)"
+  type        = string
+  default     = "europe-central2-b"
+}
+
 variable "name" {
   description = "Resource name prefix"
   type        = string

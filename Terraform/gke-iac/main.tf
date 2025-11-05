@@ -48,7 +48,7 @@ resource "google_compute_subnetwork" "public" {
 # ----------------------
 # Firewall (least-priv)
 # ----------------------
-# (Optional) SSH to nodes only from your IP if you need it
+# SSH to nodes only from your IP
 resource "google_compute_firewall" "allow_ssh" {
   name    = "${var.name}-allow-ssh"
   network = google_compute_network.vpc.name
@@ -63,7 +63,7 @@ resource "google_compute_firewall" "allow_ssh" {
   target_tags   = ["${var.name}-node"]
 }
 
-# Allow ONLY HTTP to NodePort 30080 (your earlier NGINX)
+# Allow ONLY HTTP to NodePort 30080
 resource "google_compute_firewall" "allow_http_nodeport" {
   name    = "${var.name}-allow-http-30080"
   network = google_compute_network.vpc.name
@@ -78,20 +78,21 @@ resource "google_compute_firewall" "allow_http_nodeport" {
   target_tags   = ["${var.name}-node"]
 }
 
-# Allow all egress (nodes -> internet) to pull images, etc.
+# Allow all egress (nodes -> internet)
 resource "google_compute_firewall" "allow_egress" {
-  name    = "${var.name}-allow-egress"
-  network = google_compute_network.vpc.name
+  name      = "${var.name}-allow-egress"
+  network   = google_compute_network.vpc.name
   direction = "EGRESS"
 
   destination_ranges = ["0.0.0.0/0"]
+
   allow {
     protocol = "all"
   }
 }
 
 # ----------------
-# GKE (Standard)
+# GKE (Standard, Zonal)
 # ----------------
 resource "google_service_account" "nodes_sa" {
   account_id   = "${var.name}-nodes"
@@ -100,18 +101,17 @@ resource "google_service_account" "nodes_sa" {
 
 resource "google_container_cluster" "cluster" {
   name     = "${var.name}-gke"
-  location = var.region
+  location = var.zone
 
   network    = google_compute_network.vpc.id
   subnetwork = google_compute_subnetwork.public.name
 
   remove_default_node_pool = true
   initial_node_count       = 1
+  deletion_protection      = false
 
-  # VPC-native (recommended)
   ip_allocation_policy {}
 
-  # Restrict control plane access (API) to your IP
   master_authorized_networks_config {
     cidr_blocks {
       cidr_block   = var.admin_cidr
@@ -119,27 +119,32 @@ resource "google_container_cluster" "cluster" {
     }
   }
 
-  # Reduce cost noise from logs/metrics while learning (adjust as needed)
   logging_service    = "logging.googleapis.com/kubernetes"
   monitoring_service = "monitoring.googleapis.com/kubernetes"
+
+  timeouts {
+    create = "30m" # default is 15m
+    update = "20m"
+    delete = "20m"
+  }
 
   depends_on = [google_project_service.services]
 }
 
 resource "google_container_node_pool" "pool" {
   name       = "${var.name}-pool"
-  location   = var.region
+  location   = var.zone # 👈 CHANGED from var.region → var.zone
   cluster    = google_container_cluster.cluster.name
-  node_count = 4
+  node_count = 2 # Reduced for free tier
 
   node_config {
-    machine_type   = var.node_machine_type   # e.g., "e2-small"
-    preemptible    = var.preemptible_nodes   # cheap for testing
-    disk_size_gb   = 20
-    disk_type      = "pd-balanced"
+    machine_type    = var.node_machine_type
+    preemptible     = var.preemptible_nodes
+    disk_size_gb    = 20
+    disk_type       = "pd-standard" # 👈 HDD avoids SSD quota
     service_account = google_service_account.nodes_sa.email
-    oauth_scopes   = ["https://www.googleapis.com/auth/cloud-platform"]
-    tags           = ["${var.name}-node"]    # matches firewall target_tags
+    oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
+    tags            = ["${var.name}-node"]
     metadata = {
       disable-legacy-endpoints = "true"
     }
@@ -154,8 +159,8 @@ resource "google_container_node_pool" "pool" {
   }
 
   autoscaling {
-    min_node_count = 4
-    max_node_count = 4
+    min_node_count = 2
+    max_node_count = 2
   }
 
   upgrade_settings {
@@ -164,17 +169,4 @@ resource "google_container_node_pool" "pool" {
   }
 
   depends_on = [google_container_cluster.cluster]
-}
-
-# -------------
-# Outputs
-# -------------
-output "cluster_name" {
-  value = google_container_cluster.cluster.name
-}
-output "region" {
-  value = var.region
-}
-output "vpc_name" {
-  value = google_compute_network.vpc.name
 }
