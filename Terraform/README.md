@@ -1,12 +1,9 @@
 cd gke-iac
 
 cp terraform.tfvars.example terraform.tfvars
-# edit terraform.tfvars and set your project_id and CIDRs
 
 terraform plan
 terraform apply
-
-
 
 $(terraform output -raw gcloud_connect)
 # or:

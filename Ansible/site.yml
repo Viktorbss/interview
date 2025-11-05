@@ -1,0 +1,66 @@
+---
+- name: Minimal cross-distro setup
+  hosts: all
+  become: yes
+  gather_facts: true
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Update repo cache (Ubuntu)
+      apt:
+        update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Upgrade all packages (Ubuntu)
+      apt:
+        upgrade: dist
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Update repo cache (RedHat)
+      dnf:
+        update_cache: yes
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Upgrade all packages (RedHat)
+      dnf:
+        name: "*"
+        state: latest
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Ensure Apache present on Ubuntu
+      apt:
+        name: apache2
+        state: present
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Deploy Hello World page (Ubuntu)
+      copy:
+        dest: /var/www/html/index.html
+        content: "{{ hello_page }}"
+      notify: Reload Apache on Ubuntu
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Ensure MariaDB is installed (RedHat)
+      dnf:
+        name: mariadb-server
+        state: present
+      when: ansible_facts['os_family'] == "RedHat"
+
+  handlers:
+    - name: Reload Apache on Ubuntu
+      block:
+        - name: Reload via systemd if available
+          service:
+            name: apache2
+            state: reloaded
+          when: ansible_facts['service_mgr'] == "systemd"
+
+        - name: Fallback reload via apachectl
+          command: "{{ item }}"
+          changed_when: true
+          failed_when: false
+          loop:
+            - apachectl -k graceful
+            - /usr/sbin/apache2ctl -k graceful
+          when: ansible_facts['service_mgr'] != "systemd"

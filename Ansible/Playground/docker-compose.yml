@@ -1,0 +1,33 @@
+version: '3.9'
+
+services:
+  ubuntu-node:
+    image: ubuntu:22.04
+    container_name: ubuntu-node
+    ports:
+      - "2222:22"
+    build:
+      context: .
+      dockerfile: Dockerfile.ubuntu
+    networks:
+      labnet:
+        ipv4_address: 172.30.0.10
+
+  redhat-node:
+    image: rockylinux:9
+    container_name: redhat-node
+    ports:
+      - "2223:22"
+    build:
+      context: .
+      dockerfile: Dockerfile.rocky
+    networks:
+      labnet:
+        ipv4_address: 172.30.0.11
+
+networks:
+  labnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
