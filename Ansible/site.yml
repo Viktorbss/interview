@@ -7,6 +7,7 @@
     - vars.yml
 
   tasks:
+    # Update repo cache and upgrade packages for Ubuntu and RedHat
     - name: Update repo cache (Ubuntu)
       apt:
         update_cache: yes
@@ -28,12 +29,34 @@
         state: latest
       when: ansible_facts['os_family'] == "RedHat"
 
-    - name: Ensure Apache present on Ubuntu
+    # Ensure Apache is installed and running on Ubuntu
+    - name: Ensure Apache is installed (Ubuntu)
       apt:
         name: apache2
         state: present
       when: ansible_facts['os_family'] == "Debian"
 
+    # due to testing curl http://localhost:8080
+    - name: Set ServerName to localhost in Apache config (Ubuntu)
+      command:
+        cmd: echo "ServerName localhost" >> /etc/apache2/apache2.conf
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Start Apache (Ubuntu)
+      command:
+        cmd: apachectl -k start
+      when: ansible_facts['os_family'] == "Debian"
+
+    # Wait for Apache to be ready on port 80
+    - name: Wait for Apache to be ready (Ubuntu)
+      wait_for:
+        port: 80
+        delay: 10
+        timeout: 60
+        state: started
+      when: ansible_facts['os_family'] == "Debian"
+
+    # Deploy Hello World page (Ubuntu)
     - name: Deploy Hello World page (Ubuntu)
       copy:
         dest: /var/www/html/index.html
@@ -41,6 +64,7 @@
       notify: Reload Apache on Ubuntu
       when: ansible_facts['os_family'] == "Debian"
 
+    # Ensure MariaDB is installed on RedHat
     - name: Ensure MariaDB is installed (RedHat)
       dnf:
         name: mariadb-server

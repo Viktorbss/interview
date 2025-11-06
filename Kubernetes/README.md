@@ -27,3 +27,7 @@ in another terminal window:
 sudo apt install -y apache2-utils
 ab -n 100000 -c 50 http://$(minikube ip):30080/
 you can see scaling pods to 4 as cpu usage is increased immediatelly and after load descresd after 60 seconds scaling down
+
+
+
+AI was not in use, but snippets reuses from internet, tested locally

@@ -1,12 +1,8 @@
+completelly new to me, i used AI (my local qween3 instruct model) to teach me how best practises work
+
 cd gke-iac
 
 cp terraform.tfvars.example terraform.tfvars
 
 terraform plan
 terraform apply
-
-$(terraform output -raw gcloud_connect)
-# or:
-gcloud container clusters get-credentials $(terraform output -raw cluster_name) \
-  --region $(terraform output -raw region) \
-  --project $(terraform output -raw project_id 2>/dev/null || echo "<your-project-id>")

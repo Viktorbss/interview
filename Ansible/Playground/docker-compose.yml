@@ -1,29 +1,57 @@
-version: '3.9'
+version: "3.8"
 
 services:
   ubuntu-node:
     image: ubuntu:22.04
     container_name: ubuntu-node
     ports:
-      - "2222:22"
-    build:
-      context: .
-      dockerfile: Dockerfile.ubuntu
+      - "2222:22"  # SSH port for Ubuntu container
+      - "8080:80"  # HTTP port to access Apache
     networks:
       labnet:
         ipv4_address: 172.30.0.10
+    tty: true
+    stdin_open: true
+    command: >
+      bash -c "
+      apt-get update -y || true &&
+      DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server sudo python3 >/dev/null 2>&1 &&
+      mkdir -p /var/run/sshd /home/ansible &&
+      useradd -m -s /bin/bash ansible || true &&
+      echo 'ansible:ansible' | chpasswd &&
+      echo 'ansible ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ansible &&
+      echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config &&
+      echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config &&
+      service ssh start &&
+      echo '✅ Ubuntu node ready and SSH running...' &&
+      tail -f /dev/null
+      "
 
   redhat-node:
     image: rockylinux:9
     container_name: redhat-node
     ports:
-      - "2223:22"
-    build:
-      context: .
-      dockerfile: Dockerfile.rocky
+      - "2223:22"  # SSH port for RedHat container
+      - "3306:3306" # MariaDB port for external access
     networks:
       labnet:
         ipv4_address: 172.30.0.11
+    tty: true
+    stdin_open: true
+    command: >
+      bash -c "
+      dnf install -y openssh-server sudo python3 >/dev/null 2>&1 &&
+      mkdir -p /var/run/sshd /home/ansible &&
+      ssh-keygen -A &&
+      useradd -m -s /bin/bash ansible || true &&
+      echo 'ansible:ansible' | chpasswd &&
+      echo 'ansible ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ansible &&
+      echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config &&
+      echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config &&
+      /usr/sbin/sshd &&
+      echo '✅ Rocky node ready and SSH running...' &&
+      tail -f /dev/null
+      "
 
 networks:
   labnet:

@@ -1,3 +1,4 @@
 ---
 hello_page: |
   <h1>Hello world</h1>
+mariadb_root_password: "root"
